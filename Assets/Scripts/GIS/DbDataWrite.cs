@@ -25,6 +25,7 @@ public class DbDataWrite : MonoBehaviour
 
         var centroids = new List<ArcGISPoint>();
         var meshFilters = new List<MeshFilter>();
+        var renderers = new List<Renderer>();
         foreach (var arcGisLocationComponent in arcGisLocationComponents)
         {
             var reprojectedLocation =
@@ -32,6 +33,7 @@ public class DbDataWrite : MonoBehaviour
             foreach (var meshFilter in arcGisLocationComponent.gameObject.GetComponents<MeshFilter>())
             {
                 meshFilters.Add(meshFilter);
+                renderers.Add(meshFilter.gameObject.GetComponent<Renderer>());
                 var meshFilterTranslation = meshFilter.gameObject.transform.position;
                 var centroid = new ArcGISPoint(reprojectedLocation.X - meshFilterTranslation.x,
                     reprojectedLocation.Y - meshFilterTranslation.z,
@@ -44,6 +46,7 @@ public class DbDataWrite : MonoBehaviour
                 foreach (var meshFilter in arcGisLocationComponent.gameObject.GetComponentsInChildren<MeshFilter>())
                 {
                     meshFilters.Add(meshFilter);
+                    renderers.Add(meshFilter.gameObject.GetComponent<Renderer>());
                     var mainParentTranslation = arcGisLocationComponent.gameObject.transform.position;
                     var centroid = new ArcGISPoint(reprojectedLocation.X - mainParentTranslation.x,
                         reprojectedLocation.Y - mainParentTranslation.z,
@@ -59,8 +62,10 @@ public class DbDataWrite : MonoBehaviour
             return;
         }
 
+        var dominantHexColors = DominantColorExtractor.ExtractDominantColors(renderers);
+
         var connection = DbCommonFunctions.GetNpgsqlConnection();
-        DBexport.ExportMeshesAsPolyhedrons(meshFilters.ToArray(), connection, centroids.ToArray(), TableName, Truncate);
+        DBexport.ExportMeshesAsPolyhedrons(meshFilters, dominantHexColors, connection, centroids.ToArray(), TableName, Truncate);
     }
 }
 #endif

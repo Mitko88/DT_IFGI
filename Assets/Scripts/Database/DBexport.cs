@@ -2,28 +2,30 @@
 using UnityEngine;
 using Npgsql;
 using UnityEditor;
+using System.Collections.Generic;
 
 #if UNITY_EDITOR
 public static class DBexport
 {
-    public static void ExportMeshesAsPolyhedrons(MeshFilter[] meshFilters, NpgsqlConnection connection, ArcGISPoint[] centroids, string tableName, bool truncate = false)
+    public static void ExportMeshesAsPolyhedrons(List<MeshFilter> meshFilters, List<string> dominantHexColors, NpgsqlConnection connection, ArcGISPoint[] centroids, string tableName,
+        bool truncate = false)
     {
         tableName = tableName.ToLower();
-        const string fields = "(id int, geom GEOMETRY(POLYHEDRALSURFACEZ))";
+        const string fields = "(id int, geom GEOMETRY(POLYHEDRALSURFACEZ), color VARCHAR(9))";
         connection.Open();
         DbCommonFunctions.CreateTableIfNotExistOrTruncate(tableName, connection, fields, truncate);
 
-        var initialSqlPart = $"INSERT INTO {tableName} (id, geom) Values(";
+        var initialSqlPart = $"INSERT INTO {tableName} (id, geom, color) Values(";
 
         using (var conn = connection)
         {
             var cmd = new NpgsqlCommand();
             cmd.Connection = conn;
-
-            for (var index = 0; index < meshFilters.Length; index++)
+            int index = 0;
+            foreach (var meshFilter in meshFilters)
             {
-                var meshFilter = meshFilters[index];
                 var centroid = centroids[index];
+                var color = dominantHexColors[index];
                 var vertices = GetShiftedVertices(meshFilter.sharedMesh.vertices, centroid, meshFilter);
                 var triangles = meshFilter.sharedMesh.triangles;
 
@@ -47,10 +49,11 @@ public static class DBexport
                     sql.Append(polygon);
                 }
 
-                sql.Append(")')");
+                sql.Append($")', '{color}')");
 
                 cmd.CommandText = sql.ToString();
                 cmd.ExecuteNonQuery();
+                index++;
             }
 
             Debug.Log("Data export is done.");
